@@ -1,0 +1,54 @@
+#!/usr/bin/env python3
+
+# ============================================================
+#   COMP2041 ASSIGNMENT 2 SUBMISSION | mygit-checkout
+#   Stephen Lerantges (z5319858)
+#   Term 2, 2024
+# ============================================================
+
+import sys
+
+from utils import (
+    preflight_checks,
+    error,
+    read_head,
+    write_head,
+    load_index,
+    get_conflicts,
+    get_commit_number_for_branch,
+    get_commit_files,
+    restore_commit,
+    get_next_commit_num,
+)
+
+if __name__ == "__main__":
+    preflight_checks("checkout")
+
+    if get_next_commit_num() == 0:
+        error("mygit-checkout: error: this command can not be run until after the first commit")
+
+    if len(sys.argv) != 2:
+        error("mygit-checkout: usage: mygit-checkout <branch>")
+
+    target_branch = sys.argv[1]
+    target_commit = get_commit_number_for_branch(
+        target_branch, prefix="checkout")
+    current_branch = read_head()
+
+    if current_branch == target_branch:
+        print(f"Already on '{target_branch}'")
+        exit(0)
+
+    # Conflict check must use target_commit as string
+    conflicts = get_conflicts(load_index(), str(target_commit))
+    if conflicts:
+        error("mygit-checkout: error: Your changes to the following files would be overwritten by checkout:\n" +
+              '\n'.join(conflicts))
+
+    # The main crux of this function is done when restoring
+    prev_commit_files = get_commit_files(
+        get_commit_number_for_branch(current_branch))
+    restore_commit(str(target_commit), prev_commit_files)
+    write_head(target_branch)
+
+    print(f"Switched to branch '{target_branch}'")

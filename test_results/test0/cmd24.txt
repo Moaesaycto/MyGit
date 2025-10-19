@@ -1,0 +1,9 @@
+---===[ Test 24 failed ]===---
+
+Failed command: mygit-add secret
+
+
+--- file 'secret' differs ---
+Expected:
+Received:
+

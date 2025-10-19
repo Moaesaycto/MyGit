@@ -1,0 +1,7 @@
+
+Your `mygit` implementation can put anything it likes in this directory,
+except a `.reference` directory.
+This is reserved for the reference implementation.
+
+Your `.mygit` doesn't need to contain a README file like this.
+

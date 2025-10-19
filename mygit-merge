@@ -1,0 +1,169 @@
+#!/usr/bin/env python3
+
+# ============================================================
+#   COMP2041 ASSIGNMENT 2 SUBMISSION | mygit-merge
+#   Stephen Lerantges (z5319858)
+#   Term 2, 2024
+# ============================================================
+
+import sys
+import os
+from utils import (
+    BRANCHES_DIR,
+    create_commit,
+    add_file,
+    decompress_blob,
+    preflight_checks,
+    clean_args,
+    get_next_commit_num,
+    is_valid_branch,
+    is_valid_commit,
+    error,
+    read_head,
+    get_commit_number_for_branch,
+    restore_commit,
+    get_commit_files,
+    save_index,
+    sha1_hash_blob,
+    unpack_commit,
+    get_merge_conflicts,
+    working_directory_would_be_overwritten,
+)
+
+from tree import (
+    find_lowest_common_ancestor,
+    add_edge_if_missing,
+    is_ancestor,
+)
+
+
+def merge(current_commit: int, target_commit: int, message: str) -> None:
+    lca = find_lowest_common_ancestor(current_commit, target_commit)
+
+    if current_commit == target_commit or is_ancestor(target_commit, current_commit):
+        print("Already up to date")
+        return
+
+    # Fast-forward
+    if lca == current_commit:
+        if working_directory_would_be_overwritten(str(target_commit)):
+            error("mygit-merge: error: can not merge: local changes to files")
+
+        restore_commit(str(target_commit),
+                       get_commit_files(str(current_commit)))
+
+        current_branch = read_head()
+        with open(os.path.join(BRANCHES_DIR, current_branch), "w") as f:
+            f.write(str(target_commit))
+
+        add_edge_if_missing(current_commit, target_commit)
+        print("Fast-forward: no commit created")
+        return
+
+    # 3-way merge
+    base = get_commit_files(str(lca))
+    ours = get_commit_files(str(current_commit))
+    theirs = get_commit_files(str(target_commit))
+
+    base_blobs = unpack_commit(str(lca))
+    our_blobs = unpack_commit(str(current_commit))
+    their_blobs = unpack_commit(str(target_commit))
+
+    all_files = set(base) | set(ours) | set(theirs)
+    conflicted_files = get_merge_conflicts(base, ours, theirs)
+    if conflicted_files:
+        print("mygit-merge: error: These files can not be merged:")
+        for fname in conflicted_files:
+            print(fname)
+        return
+
+    # Resolve merges
+    merged_index = {}
+    for fname in sorted(all_files):
+        base_sha = base.get(fname)
+        our_sha = ours.get(fname)
+        their_sha = theirs.get(fname)
+
+        if our_sha == their_sha:
+            merged_index[fname] = our_sha
+        elif base_sha == our_sha:
+            merged_index[fname] = their_sha
+        elif base_sha == their_sha:
+            merged_index[fname] = our_sha
+        else:
+            continue  # Should never happen due to conflict check
+
+    # Reconstruct working directory and stage
+    for fname, sha in merged_index.items():
+        blob = None
+        for blob_dict in (our_blobs, their_blobs, base_blobs):
+            for b in blob_dict.values():
+                content = decompress_blob(b).decode()
+                if sha1_hash_blob(content.encode()) == sha:
+                    blob = b
+                    break
+            if blob:
+                break
+
+        if blob is not None:
+            content = decompress_blob(blob).decode()
+            with open(fname, "w") as f:
+                f.write(content)
+            add_file(content.encode())
+
+    merged_index = {k: v for k, v in merged_index.items() if v is not None}
+    save_index(merged_index)
+
+    # Create merge commit with both parents
+    commit_num = create_commit(merged_index, message, [target_commit])
+    if commit_num is not None:
+        print(f"Committed as commit {commit_num}")
+    else:
+        print("mygit-merge: nothing to commit")
+
+
+if __name__ == "__main__":
+    preflight_checks("merge")
+
+    if get_next_commit_num() == 0:
+        error(
+            "mygit-merge: error: this command can not be run until after the first commit")
+
+    args = clean_args(
+        "usage: mygit-merge <branch|commit> -m message", sys.argv[1:], params=["-m"])
+
+    if "-m" not in args:
+        if len(args) == 1:
+            error("mygit-merge: error: empty commit message")
+        else:
+            error("usage: mygit-merge <branch|commit> -m message")
+
+    msg_index = args.index("-m")
+    if msg_index == len(args) - 1:
+        error("usage: mygit-merge <branch|commit> -m message")
+
+    message = args[msg_index + 1]
+
+    # Get the branch/commit to merge in
+    targets = [arg for i, arg in enumerate(
+        args) if i != msg_index and i != msg_index + 1]
+    if len(targets) != 1:
+        error("usage: mygit-merge <branch|commit> -m message")
+
+    target = targets[0]
+
+    # Resolve target to commit number
+    try:
+        target_commit = int(target)
+        if not is_valid_commit(target_commit):
+            error(f"mygit-merge: error: unknown commit '{target}'")
+    except ValueError:
+        if not is_valid_branch(target):
+            error(f"mygit-merge: error: unknown branch '{target}'")
+        target_commit = int(get_commit_number_for_branch(target))
+
+    # Get current branch and commit
+    current_branch = read_head()
+    current_commit = int(get_commit_number_for_branch(current_branch))
+
+    merge(current_commit, target_commit, message)

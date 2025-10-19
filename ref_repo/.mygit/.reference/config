@@ -1,0 +1,9 @@
+[core]
+	repositoryformatversion = 0
+	fileMode = false
+	bare = false
+	logallrefupdates = true
+	worktree = /import/glass/4/z5319858/COMP2041/ass2/ref_repo
+[user]
+	email = mygit@example.com
+	name = mygit

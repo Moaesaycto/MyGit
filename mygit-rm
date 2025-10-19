@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+
+# ============================================================
+#   COMP2041 ASSIGNMENT 2 SUBMISSION | mygit-rm
+#   Stephen Lerantges (z5319858)
+#   Term 2, 2024
+# ============================================================
+
+import os
+import sys
+
+from utils import (
+    preflight_checks,
+    load_index,
+    save_index,
+    error,
+    clean_args,
+    filename_check,
+    sha1_hash_blob,
+    get_prev_file_sha1,
+    get_next_commit_num,
+)
+
+
+def _file_state(path: str) -> tuple[bool, str | None]:
+    """
+        Gets the file state as a tuple with whether it exists and what its
+        SHA1 blob is.
+
+    Args:
+        path (str): File path
+
+    Returns:
+        (bool, string | None): (exists, current_sha) for a path
+    """
+    if not os.path.exists(path):
+        return False, None
+    try:
+        with open(path, "rb") as f:
+            return True, sha1_hash_blob(f.read())
+    except OSError:
+        error(f"mygit-rm: error: can not open '{path}'")
+
+
+if __name__ == "__main__":
+    preflight_checks("rm")
+
+    args = clean_args("usage: mygit-rm [--force] [--cached] <filenames>",
+                      sys.argv[1:], params=["--force", "--cached"])
+    cached = "--cached" in args
+    forced = "--force" in args
+
+    # Unique, sorted list of filenames
+    filenames = sorted({a for a in args if a not in ("--force", "--cached")})
+    if not filenames:
+        error("usage: mygit-rm [--force] [--cached] <filenames>")
+
+    index = load_index()
+
+    # Validating the files (done first, nothing can be deleted unless all are safe)
+    for file in filenames:
+        filename_check(file, prefix="rm")
+
+        if file not in index:
+            error(f"mygit-rm: error: '{file}' is not in the mygit repository")
+
+        in_index_sha = index[file]
+        last_commit_sha = None
+        if get_next_commit_num() > 0:
+            last_commit_sha = get_prev_file_sha1(file)
+
+        exists, current_sha = _file_state(file)
+
+        # File missing on disk but user tries normal rm
+        if not exists and not cached and not forced:
+            error(f"mygit-rm: error: '{file}' is not in the mygit repository")
+
+        # When file exists, compare states
+        if exists and not forced:
+            # Index differs from both working file and repo
+            if (current_sha != in_index_sha and
+                (last_commit_sha is None or in_index_sha != last_commit_sha) and
+                    (last_commit_sha is None or current_sha != last_commit_sha)):
+                error(f"mygit-rm: error: '{file}' in index is different to both the working file and the repository")
+
+            # Working file differs from index
+            if current_sha != in_index_sha and not cached:
+                error(f"mygit-rm: error: '{file}' in the repository is different to the working file")
+
+            # Index differs from repo (staged changes)
+            if (last_commit_sha is None or in_index_sha != last_commit_sha) and not cached:
+                error(f"mygit-rm: error: '{file}' has staged changes in the index")
+
+    for file in filenames:
+        exists = os.path.exists(file)
+        if not cached and exists:
+            os.remove(file)
+
+        # ALWAYS Remove from index
+        del index[file]
+
+    save_index(index)

@@ -1,0 +1,72 @@
+#!/usr/bin/env python3
+
+# ============================================================
+#   COMP2041 ASSIGNMENT 2 SUBMISSION | mygit-show
+#   Stephen Lerantges (z5319858)
+#   Term 2, 2024
+# ============================================================
+
+import sys
+import os
+import zlib
+
+from utils import (
+    OBJECTS_DIR,
+    preflight_checks,
+    error,
+    unpack_commit,
+    load_index,
+    is_valid_commit,
+    filename_check,
+    clean_args,
+)
+
+if __name__ == "__main__":
+    preflight_checks("show")
+    args = clean_args("usage: mygit-show <commit>:<filename>", sys.argv)
+    if len(args) != 2:
+        error("usage: mygit-show <commit>:<filename>")
+
+    # Sanity checking (someone please check my sanity /j)
+    arg = args[1]
+    if ':' not in arg:
+        error("usage: mygit-show <commit>:<filename>")
+
+    commit_part, filename = arg.split(":", 1)
+    if commit_part != '' and not is_valid_commit(commit_part):
+        error(f"mygit-show: error: unknown commit '{commit_part}'")
+    filename_check(filename, prefix="show")
+
+    # Retrieving from the index
+    if commit_part == '':
+        index = load_index()
+        if filename not in index:
+            error(f"mygit-show: error: '{filename}' not found in index")
+
+        sha1 = index[filename]
+        folder, obj_name = sha1[:2], sha1[2:]
+        obj_path = os.path.join(OBJECTS_DIR, folder, obj_name)
+
+        if not os.path.exists(obj_path):
+            error(f"mygit-show: error: object {sha1} not found")
+
+        with open(obj_path, "rb") as f:
+            blob = f.read()
+
+    # Retrieving from specific commit
+    else:
+        commit_number = int(commit_part)
+        files = unpack_commit(commit_number)
+
+        if filename not in files:
+            error(
+                f"mygit-show: error: '{filename}' not found in commit {commit_number}")
+
+        blob = files[filename]
+
+    decompressed = zlib.decompress(blob)
+    header_end = decompressed.find(b'\x00')
+    if header_end == -1:
+        error("Invalid blob format")
+
+    print(decompressed[header_end + 1:].decode(errors="replace"), end="")

@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+# ============================================================
+#   COMP2041 ASSIGNMENT 2 SUBMISSION | mygit-log
+#   Stephen Lerantges (z5319858)
+#   Term 2, 2024
+# ============================================================
+
+import sys
+from utils import (
+    error,
+    preflight_checks,
+    read_head,
+    get_commit_number_for_branch,
+    get_commit_message,
+    get_next_commit_num,
+)
+from tree import get_all_reachable_commits
+
+if __name__ == "__main__":
+    preflight_checks("log")
+    if len(sys.argv) != 1:
+        error("usage: mygit-log")
+
+    if get_next_commit_num() == 0:
+        exit(0)
+
+    # Get current branch and commit
+    current_branch = read_head()
+    head_commit = int(get_commit_number_for_branch(current_branch))
+
+    # Get all reachable commits from HEAD (including merged)
+    commits = get_all_reachable_commits(head_commit)
+
+    # Print logs (newest first)
+    for commit_no in commits:
+        print(f"{commit_no} {get_commit_message(commit_no)}")

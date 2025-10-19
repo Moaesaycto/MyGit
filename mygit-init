@@ -1,0 +1,44 @@
+#!/usr/bin/env python3
+
+# ============================================================
+#   COMP2041 ASSIGNMENT 2 SUBMISSION | mygit-init
+#   Stephen Lerantges (z5319858)
+#   Term 2, 2024
+# ============================================================
+
+import os
+import sys
+
+from utils import (
+    ROOT,
+    OBJECTS_DIR,
+    BRANCHES_DIR,
+    COMMITS_DIR,
+    INDEX_FILE,
+    LOG_FILE,
+    HEAD_FILE,
+    error,
+)
+
+if __name__ == "__main__":
+    # Apparently this isn't needed, but I am a paranoid old coot.
+    # https://discourse01.cse.unsw.edu.au/25T2/COMP2041/t/issue-with-existence-of-gitignore/808
+    if os.path.exists(".gitignore"):
+        error("mygit-init: error: can not run mygit because .gitignore present in current directory")
+
+    if len(sys.argv) > 1:
+        error("usage: mygit-init")
+
+    if os.path.isdir(ROOT):
+        error(f"mygit-init: error: .mygit already exists")
+
+    os.mkdir(ROOT)
+    for sub in [OBJECTS_DIR, BRANCHES_DIR, COMMITS_DIR]:
+        os.mkdir(sub)
+
+    # Create empty index and log files
+    for f in [INDEX_FILE, LOG_FILE, HEAD_FILE]:
+        with open(f, 'w'):
+            pass
+
+    print("Initialized empty mygit repository in .mygit")

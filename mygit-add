@@ -1,0 +1,50 @@
+#!/usr/bin/env python3
+
+# ============================================================
+#   COMP2041 ASSIGNMENT 2 SUBMISSION | mygit-add
+#   Stephen Lerantges (z5319858)
+#   Term 2, 2024
+# ============================================================
+
+import sys
+import os
+from utils import (
+    clean_args,
+    preflight_checks,
+    error,
+    add_file,
+    save_index,
+    load_index,
+    filename_check,
+)
+
+if __name__ == "__main__":
+    preflight_checks("add")
+    args = clean_args("usage: mygit-add <filenames>", sys.argv[1:])
+    if len(args) < 1:
+        error("usage: mygit-add <filenames>")
+
+    index = load_index()
+    for filename in args:
+        filename_check(filename, exists=False)
+
+        if os.path.isdir(filename):
+            error(f"mygit-add: error: '{filename}' is not a regular file")
+
+        # I forgot why I added the top bit of the logic, but I'm keeping it for safety
+        if not os.path.isfile(filename):
+            if filename in index:
+                del index[filename]
+                continue
+            else:
+                error(f"mygit-add: error: can not open '{filename}'")
+
+        # Permission errors if you cannot open the file. i.e. it cannot be read.
+        try:
+            with open(filename, "rb") as f:
+                index[filename] = add_file(f.read())
+        except (OSError, PermissionError):
+            error(f"mygit-add: error: can not open '{filename}'")
+
+    # Save only if all files pass
+    save_index(index)

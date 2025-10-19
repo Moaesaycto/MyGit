@@ -1,0 +1,112 @@
+#!/usr/bin/env python3
+
+# ============================================================
+#   COMP2041 ASSIGNMENT 2 SUBMISSION | mygit-status
+#   Stephen Lerantges (z5319858)
+#   Term 2, 2024
+# ============================================================
+
+import sys
+import os
+from typing import Union
+
+from utils import (
+    error,
+    preflight_checks,
+    load_index,
+    get_prev_file_sha1,
+    sha1_hash_blob,
+    get_all_tracked_files,
+)
+
+
+def generate_status(filename: str) -> Union[str, None]:
+    """
+    Determine and return the status of a given file relative to the index,
+    working directory, and last commit.
+
+    The function compares SHA1 hashes to classify the file's state as one of:
+    - same as repo
+    - added to index
+    - added to index, file changed
+    - file changed, changes not staged for commit
+    - file changed, changes staged for commit
+    - file changed, different changes staged for commit
+    - file deleted
+    - added to index, file deleted
+    - file deleted, deleted from index
+    - deleted from index
+    - untracked
+
+    (I think that's all of them...)
+
+    Args:
+        filename (str): Name of the file to check
+
+    Returns:
+        str | None: Status string if file has a relevant state; otherwise None
+    """
+    index = load_index()
+    index_sha = index.get(filename)  # None if not staged
+    last_commit_sha = get_prev_file_sha1(filename)  # None if never committed
+    exists = os.path.isfile(filename)
+
+    # SHA1 of working-dir version (only if file exists)
+    working_sha = None
+    if exists:
+        with open(filename, "rb") as f:
+            working_sha = sha1_hash_blob(f.read())
+
+        # File was committed before AND is staged
+        if working_sha == last_commit_sha:
+            return f"{filename} - same as repo"
+
+    # File missing from repo
+    if not exists:
+        if index_sha == last_commit_sha:
+            return f"{filename} - file deleted"
+        if index_sha is not None:
+            # still tracked in index
+            return f"{filename} - added to index, file deleted"
+        if last_commit_sha is not None:
+            # gone from both working dir && index, but was in repo
+            return f"{filename} - file deleted, deleted from index"
+        # not tracked anywhere: nothing to list
+        return None
+
+    # File exists in working dir
+    if index_sha is None:          # not staged
+        if last_commit_sha is not None:
+            # was committed, removed from index, but recreated
+            return f"{filename} - deleted from index"
+        # never tracked at all
+        return f"{filename} - untracked"
+
+    # Index entry exists from here on
+    if last_commit_sha is None:
+        # New file (not in repo history)
+        if working_sha == index_sha:
+            return f"{filename} - added to index"
+        return f"{filename} - added to index, file changed"
+
+
+    if index_sha == last_commit_sha and working_sha != index_sha:
+        return f"{filename} - file changed, changes not staged for commit"
+
+    if working_sha == index_sha and index_sha != last_commit_sha:
+        return f"{filename} - file changed, changes staged for commit"
+
+    # All three differ
+    # TODO: Find this error message
+    return f"{filename} - file changed, different changes staged for commit"
+
+
+if __name__ == "__main__":
+    preflight_checks("status")
+    if len(sys.argv) > 1:
+        error("usage: mygit-status")
+
+    files = get_all_tracked_files()
+    index = load_index()
+    for file in files:
+        print(generate_status(file))

@@ -1,20 +1,34 @@
-# MyGit
+# **MyGit**
 
-MyGit was a COMP2041 project that involved implementing Git from scratch using Python (and Shell for testing). When a project was added, it was stored in the head until it was commited. The version of the file was stored using a a content-addressable storage (CAS) scheme, where the file’s name or path is derived from its hash. A hash-prefix partitioning was used to manually hash the location of the file for extremely quick look-ups even with many files.
+**Type:** Version Control System · **Tech Stack:** Python, Shell (for testing) · **Status:** Completed
 
-The project also included manual version control, as well as branches and merging (which was an absolute nightmare). Most of it is functional except for one small bug when checking out from a branch.
+## **Overview**
 
-Just like the other assignment from this course, there is a manual testing script that compares the outputs of my implementation to the outputs of the reference implementation. Unlike the previous assignment, this one creates a mini virtual environment to initialise the mygit repositories, so that they do not affect each other when files are moved and items are changed. It also compares to make sure that the exact same files (with the exact same contents) are present in both directories each step of the way. If there was a single thing wrong in any aspect, this testing script would alert me.
+**MyGit** was a **COMP2041** project recreating the essential features of Git from scratch. It implements content-addressable storage, branching, merging, and metadata management entirely in Python, with Bash scripts used for extensive regression testing.
 
-- `mygit-init` creates a new repository; initialises metadata and object storage.
-- `mygit-add` stages file changes for the next commit (hashes and stores them).
-- `mygit-rm` removes files from the working tree and staging area.
-- `mygit-show` displays the contents or details of a specific object or commit.
-- `mygit-branch` lists, creates, or deletes branches.
-- `mygit-log` shows the commit history.
-- `mygit-status` displays current branch, staged and unstaged changes.
-- `mygit-checkout` switches branches or restores files from a commit.
-- `mygit-merge` merges changes from one branch into another.
-- `mygit-commit` records staged changes as a new commit with a message and metadata.
+## **Features**
 
-**If you want me to make this project private, please let me know and I will do so immediately.**
+* `mygit-init`: Initialise a new repository with metadata and object storage.
+* `mygit-add`: Stage file changes; compute hashes for CAS storage.
+* `mygit-rm`: Remove files from working tree and staging area.
+* `mygit-show`: Display contents or metadata of commits/objects.
+* `mygit-branch`: Create, list, or delete branches.
+* `mygit-log`: Show commit history.
+* `mygit-status`: Display current branch and file change states.
+* `mygit-checkout`: Switch branches or restore files from commits.
+* `mygit-merge`: Merge branches (mostly functional, with one minor checkout bug).
+* `mygit-commit`: Record staged changes with message and timestamp.
+
+## **Testing and Validation**
+
+Includes a **virtualised test harness** that:
+
+* Spins up isolated environments for each repository test.
+* Compares MyGit’s output and file states against the **reference Git implementation**.
+* Flags any discrepancy between expected and actual results; even a single byte difference.
+
+## **Purpose**
+
+Built to deeply understand the internal mechanisms of Git: particularly **content-addressable storage**, **branching logic**, and **merge conflicts**: while gaining experience in robust testing and debugging of large script-based systems.
+
+*(Note: Can be made private upon request.)*
